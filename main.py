@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Response, status, HTTPException, Depends 
+from fastapi import FastAPI, Response, status, HTTPException, Depends, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ import config
 import funciones_cifs
 import cif_reader
 import pandas as pd
+import os, shutil
 
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -31,6 +32,22 @@ app.add_middleware(
                         allow_methods=["*"],
                             allow_headers=["*"],
                             )
+
+@app.post("/upload")
+async def subir_pdf(archivo_recibido: UploadFile):
+    if not archivo_recibido.content_type == "application/pdf":
+        return {'Archivo no es PDF'}
+
+    nombre_en_disco = config.CARPETA_RECIBIDOS + archivo_recibido.filename
+    count = 0
+    if os.path.isfile(nombre_en_disco):
+        count += 1
+        nombre_en_disco = nombre_en_disco[:-4] + '_' + str(count) + '.pdf'
+
+    with open(nombre_en_disco, 'wb+') as archivo_local:
+        shutil.copyfileobj(archivo_recibido.file, archivo_local)
+
+    return {'nombre': 'Archivo Guardado Exitosamente'}
 
 
 @app.post("/alta_cliente", status_code=status.HTTP_201_CREATED, response_model=schemas.RespuestaAltaCliente)
